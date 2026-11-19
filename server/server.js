@@ -8,12 +8,48 @@ import medicineRoutes from "./routes/medicineRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 
 dotenv.config();
+
 const app = express();
 
-app.use(cors({ origin: process.env.CLIENT_URL || "http://localhost:5173" }));
+const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:5173")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  }
+}));
 app.use(express.json({ limit: "1mb" }));
 app.use("/api", rateLimit({ windowMs: 15 * 60 * 1000, max: 300 }));
 
+let mongoPromise;
+
+async function connectDatabase() {
+  if (mongoose.connection.readyState === 1) return;
+  if (!process.env.MONGODB_URI) throw new Error("MONGODB_URI is missing.");
+  if (!mongoPromise) mongoPromise = mongoose.connect(process.env.MONGODB_URI);
+  await mongoPromise;
+}
+
+app.use(async (_req, _res, next) => {
+  try {
+    await connectDatabase();
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/", (_req, res) => {
+  res.json({
+    status: "ok",
+    service: "Medicine Handling API",
+    health: "/api/health"
+  });
+});
 app.get("/api/health", (_req, res) => res.json({ status: "ok", service: "Medicine Handling API" }));
 app.use("/api/auth", authRoutes);
 app.use("/api/medicines", medicineRoutes);
@@ -25,10 +61,14 @@ app.use((err, _req, res, _next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-if (!process.env.MONGODB_URI) {
-  console.error("MONGODB_URI is missing. Create server/.env from .env.example.");
-  process.exit(1);
+
+if (!process.env.VERCEL) {
+  connectDatabase()
+    .then(() => app.listen(PORT, () => console.log(`API running on port ${PORT}`)))
+    .catch((error) => {
+      console.error("MongoDB connection failed:", error.message);
+      process.exit(1);
+    });
 }
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => app.listen(PORT, () => console.log(`API running on port ${PORT}`)))
-  .catch((error) => { console.error("MongoDB connection failed:", error.message); process.exit(1); });
+
+export default app;
