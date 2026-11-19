@@ -1,10 +1,11 @@
 import axios from "axios";
 
 const configuredUrl = import.meta.env.VITE_API_URL?.trim();
+const backendUrl = "https://nmra-medicine-management-system.vercel.app/api";
 const api = axios.create({
   baseURL: configuredUrl
     ? configuredUrl.replace(/\/+$/, "")
-    : "/api",
+    : backendUrl,
   timeout: 30000
 });
 

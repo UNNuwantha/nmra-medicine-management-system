@@ -13,9 +13,21 @@ dotenv.config();
 
 const app = express();
 
-const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:5173")
+const configuredOrigins = [
+  process.env.CLIENT_URL,
+  "http://localhost:5173",
+  "https://nmra-medicine-management-system-jxs.vercel.app"
+].filter(Boolean).join(",");
+
+const allowedOrigins = configuredOrigins
   .split(",")
-  .map((origin) => origin.trim())
+  .map((origin) => {
+    try {
+      return new URL(origin.trim()).origin;
+    } catch {
+      return origin.trim().replace(/\/+$/, "");
+    }
+  })
   .filter(Boolean);
 
 app.use(cors({
