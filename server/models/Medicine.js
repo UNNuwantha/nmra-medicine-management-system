@@ -1,0 +1,10 @@
+import mongoose from "mongoose";
+export const SAMPLE_TYPES=["Registration","Complaint","Other","Surveillance"];
+export const DIVISIONS=["Bio","Micro","Chemical","Device","Judiciary"];
+export const WORKFLOW_STAGES=["Sample Received","Sample Distribute","Received Sample Division","Distribute","Analysis","Submit","Checking","Submit After Check","Ready for Typing","Draft Typing","Checked by Division","Checked by Technical","Final Typing","Director's Sign"];
+const workflowSchema=new mongoose.Schema({stage:{type:String,enum:WORKFLOW_STAGES,required:true},details:{type:String,default:"",maxlength:3000},completed:{type:Boolean,default:false},updatedBy:{type:mongoose.Schema.Types.ObjectId,ref:"User"},updatedAt:{type:Date,default:Date.now}},{_id:false});
+const historySchema=new mongoose.Schema({stage:String,previousDetails:String,newDetails:String,editedBy:{type:mongoose.Schema.Types.ObjectId,ref:"User"},editedAt:{type:Date,default:Date.now}});
+const notificationStateSchema=new mongoose.Schema({user:{type:mongoose.Schema.Types.ObjectId,ref:"User",required:true},at:{type:Date,default:Date.now}},{_id:false});
+const schema=new mongoose.Schema({lrNumber:{type:String,required:true,unique:true,trim:true,uppercase:true},genericName:{type:String,required:true,trim:true},batchNumber:{type:String,required:true,trim:true},receivedDate:{type:Date,required:true},expiryDate:{type:Date,required:true},sampleType:{type:String,enum:SAMPLE_TYPES,required:true},division:{type:String,enum:DIVISIONS,required:true},manufacturer:{type:String,default:""},coaNumber:{type:String,default:""},quantity:{type:Number,min:0,default:0},notes:{type:String,default:""},workflow:{type:[workflowSchema],default:()=>WORKFLOW_STAGES.map(stage=>({stage}))},editHistory:{type:[historySchema],default:[]},createdBy:{type:mongoose.Schema.Types.ObjectId,ref:"User",required:true},lastEditedBy:{type:mongoose.Schema.Types.ObjectId,ref:"User"},lastEditedAt:{type:Date,default:Date.now},visitedBy:{type:[notificationStateSchema],default:[]},dismissedBy:{type:[notificationStateSchema],default:[]}},{timestamps:true});
+schema.index({expiryDate:1});
+export default mongoose.model("Medicine",schema);
